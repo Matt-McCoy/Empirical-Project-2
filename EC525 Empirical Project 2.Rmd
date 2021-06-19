@@ -1,0 +1,241 @@
+---
+title: "Empirical Project 2"
+author: "Matt McCoy"
+date: "5/17/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+## Install the pacman package if necessary
+if (!require("pacman")) install.packages("pacman")
+## Install other packages using pacman::p_load()
+pacman::p_load(tidyverse, haven, sandwich, lmtest, stargazer, dplyr, ggplot2, broom, magrittr)
+
+getwd()
+river_df <- read_dta(file = "huairiver.dta")
+```
+
+```{r}
+#create bins for dist
+river_df <- river_df %>% mutate(dist_bin= cut(dist_huai, breaks=quantile(dist_huai, probs = seq(0, 1, by = 0.05), na.rm = TRUE)))
+
+is.factor(river_df$dist_bin)
+
+table(river_df$dist_bin)
+```
+
+
+```{r}
+river_df %>%
+  group_by(dist_bin) %>% 
+  summarise(pm10 = mean(pm10), dist_huai= mean(dist_huai)) %>% 
+  ggplot(aes(x=dist_huai,y=pm10,color=pm10)) + geom_point() + geom_smooth(method="gam") + geom_vline(xintercept=0,linetype="longdash") + ylab("PM10 level") + xlab("Degrees North of Huai River")
+```
+
+```{r}
+river_df %<>% mutate(north_south = ifelse(north_huai == 1, "North", "South"))
+```
+
+```{r}
+#4a.)
+river_df %>%
+  group_by(dist_bin) %>% 
+  summarise(pm10 = mean(pm10), dist_huai= mean(dist_huai), north_south = north_south) %>% 
+  ggplot(aes(x=dist_huai,y=pm10,color = north_south))+geom_point()+
+  geom_smooth(method="lm")+geom_vline(xintercept=0,linetype="longdash") + ggtitle("PM10 Binned Scatter Plot") + 
+  labs(y="PM10", x = "Degrees North of Huai River")
+```
+
+
+```{r}
+#4b.i.)
+
+river_df %>%
+  group_by(dist_bin) %>% 
+  summarise(temp = mean(temp), dist_huai= mean(dist_huai), north_south = north_south) %>% 
+  ggplot(aes(x=dist_huai,y=temp,color = north_south))+geom_point()+
+  geom_smooth(method="lm")+geom_vline(xintercept=0,linetype="longdash") + ggtitle("Temperature Binned Scatter Plot") + 
+  labs(y="Temperature", x = "Degrees North of Huai River")
+```
+
+```{r}
+
+river_df %>%
+  group_by(dist_bin) %>% 
+  summarise(prcp = mean(prcp), dist_huai= mean(dist_huai), north_south = north_south) %>% 
+  ggplot(aes(x=dist_huai,y=prcp,color = north_south))+geom_point()+
+  geom_smooth(method="lm")+geom_vline(xintercept=0,linetype="longdash") + ggtitle("Precipitation Binned Scatter Plot") + 
+  labs(y="Precipitation", x = "Degrees North of Huai River")
+```
+
+
+```{r}
+library(ggthemes)
+
+river_df %>%
+  group_by(dist_bin) %>% 
+  summarise(wspd = mean(wspd), dist_huai= mean(dist_huai), north_south = north_south) %>% 
+  ggplot(aes(x=dist_huai,y=wspd,color = north_south))+geom_point()+
+  geom_smooth(method="lm")+geom_vline(xintercept=0,linetype="longdash") + ggtitle("Windspeed Binned Scatter Plot") + 
+  labs(y="Windspeed", x = "Degrees North of Huai River")
+```
+
+
+```{r}
+pm10_reg <- lm(pm10 ~ dist_huai + north_huai , data = river_df)
+
+stargazer(pm10_reg, type = 'text')
+```
+
+```{r}
+temp_reg <- lm(temp ~ dist_huai + north_huai , data = river_df)
+
+stargazer(temp_reg, type = 'text')
+```
+
+```{r}
+prcp_reg <- lm(prcp ~ dist_huai + north_huai , data = river_df)
+
+stargazer(prcp_reg, type = 'text')
+```
+
+```{r}
+wspd_reg <- lm(wspd ~ dist_huai + north_huai , data = river_df)
+
+stargazer(wspd_reg, type = 'text')
+```
+
+```{r}
+stargazer(pm10_reg, temp_reg, prcp_reg, wspd_reg, type = 'text')
+```
+
+
+```{r}
+# conf. interval: [1.96 - 2*SE, 1.96 + 2*SE]
+
+```
+
+```{r}
+
+ggplot(river_df, aes(x = dist_huai, after_stat(density))) +
+  geom_histogram() + ggtitle("Manipulation test") + 
+  labs(y="Density", x = "Degrees North of Huai River") 
+```
+
+```{r}
+river_df$one_degree_north <- (river_df$dist_huai - 1) 
+
+river_df$two_degree_north <- (river_df$dist_huai - 2) 
+
+river_df$three_degree_north <- (river_df$dist_huai - 3) 
+
+river_df$four_degree_north <- (river_df$dist_huai - 4)
+
+river_df$five_degree_north <- (river_df$dist_huai - 5) 
+
+river_df$one_degree_south <- (river_df$dist_huai + 1) 
+
+river_df$two_degree_south <- (river_df$dist_huai + 2)
+
+river_df$three_degree_south <- (river_df$dist_huai + 3)
+
+river_df$four_degree_south <- (river_df$dist_huai + 4) 
+
+river_df$five_degree_south <- (river_df$dist_huai + 5) 
+```
+
+```{r}
+river_df %<>% mutate(one_degree_north_huai = ifelse(one_degree_north > 0, 1, 0))
+
+river_df %<>% mutate(two_degree_north_huai = ifelse(two_degree_north > 0, 1, 0))
+
+river_df %<>% mutate(three_degree_north_huai = ifelse(three_degree_north > 0, 1, 0))
+
+river_df %<>% mutate(four_degree_north_huai = ifelse(four_degree_north > 0, 1, 0))
+
+river_df %<>% mutate(five_degree_north_huai = ifelse(five_degree_north > 0, 1, 0))
+
+river_df %<>% mutate(one_degree_south_huai = ifelse(one_degree_south > 0, 1, 0))
+
+river_df %<>% mutate(two_degree_south_huai = ifelse(two_degree_south > 0, 1, 0))
+
+river_df %<>% mutate(three_degree_south_huai = ifelse(three_degree_south > 0, 1, 0))
+
+river_df %<>% mutate(four_degree_south_huai = ifelse(four_degree_south > 0, 1, 0))
+
+river_df %<>% mutate(five_degree_south_huai = ifelse(five_degree_south > 0, 1, 0))
+```
+
+```{r}
+new_reg1 <- lm(pm10 ~ one_degree_north_huai + one_degree_north, data = river_df)
+
+new_reg2 <- lm(pm10 ~ two_degree_north_huai + two_degree_north, data = river_df)
+
+new_reg3 <- lm(pm10 ~ three_degree_north_huai + three_degree_north , data = river_df)
+
+new_reg4 <- lm(pm10 ~ four_degree_north_huai + four_degree_north, data = river_df)
+
+new_reg5 <- lm(pm10 ~ five_degree_north_huai + five_degree_north, data = river_df)
+
+stargazer(new_reg1, new_reg2, new_reg3, new_reg4, new_reg5, type = 'text')
+```
+
+```{r}
+new_reg6 <- lm(pm10 ~ one_degree_south_huai + one_degree_south , data = river_df)
+
+new_reg7 <- lm(pm10 ~ two_degree_south_huai + two_degree_south, data = river_df)
+
+new_reg8 <- lm(pm10 ~ three_degree_south_huai + three_degree_south, data = river_df)
+
+new_reg9 <- lm(pm10 ~ four_degree_south_huai + four_degree_south, data = river_df)
+
+new_reg10 <- lm(pm10 ~ five_degree_south_huai + five_degree_south, data = river_df)
+
+stargazer(new_reg6, new_reg7, new_reg8, new_reg9, new_reg10, type = 'text')
+```
+
+```{r}
+library(dotwhisker)
+
+orig_tidy <- tidy(pm10_reg)
+
+n_1_tidy <- tidy(new_reg1)
+n_2_tidy <- tidy(new_reg2)
+n_3_tidy <- tidy(new_reg3)
+n_4_tidy <- tidy(new_reg4)
+n_5_tidy <- tidy(new_reg5)
+
+s_1_tidy <- tidy(new_reg6)
+s_2_tidy <- tidy(new_reg7)
+s_3_tidy <- tidy(new_reg8)
+s_4_tidy <- tidy(new_reg9)
+s_5_tidy <- tidy(new_reg10)
+
+joined_reg <- rbind(s_5_tidy, s_4_tidy, s_3_tidy, s_2_tidy, s_1_tidy, orig_tidy, n_1_tidy, n_2_tidy, n_3_tidy, n_4_tidy, n_5_tidy)
+
+joined_reg %<>% mutate(term = ifelse(term == "five_degree_south_huai", "-5", term),
+                        term = ifelse(term == "four_degree_south_huai", "-4", term),
+                        term = ifelse(term == "three_degree_south_huai", "-3", term),
+                        term = ifelse(term == "two_degree_south_huai", "-2", term),
+                        term = ifelse(term == "one_degree_south_huai", "-1", term),
+                        term = ifelse(term == "north_huai", "0", term),
+                       term = ifelse(term == "one_degree_north_huai", "+1", term),
+                       term = ifelse(term == "two_degree_north_huai", "+2", term),
+                       term = ifelse(term == "three_degree_north_huai", "+3", term),
+                       term = ifelse(term == "four_degree_north_huai", "+4", term),
+                       term = ifelse(term == "five_degree_north_huai", "+5", term))
+
+
+
+dw_plot <- dwplot(joined_reg, ci=.95) + ylim(breaks=c("-5","-4","-3","-2","-1", "0", "+1", "+2", "+3", "+4", "+5")) + coord_flip() 
+
+dw_plot + geom_vline(xintercept=0,linetype="longdash") + ggtitle("Huai River Placebo Test") + 
+  labs(x="PM10 Discontinuity", y = "Degrees North of Huai River")
+
+```
+
+
